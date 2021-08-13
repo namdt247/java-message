@@ -1,9 +1,17 @@
+import com.sun.org.apache.xerces.internal.impl.dv.util.Base64;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.util.Scanner;
+
+import java.io.FileInputStream;
+import java.security.KeyFactory;
+import java.security.PublicKey;
+import java.security.spec.X509EncodedKeySpec;
+import javax.crypto.Cipher;
 
 public class ChatClient implements Runnable {
 
@@ -56,11 +64,28 @@ public class ChatClient implements Runnable {
         Thread t = new Thread(this);
         t.start();
 
-        // continuously listen your user input
-        while (keyboard.hasNextLine()) {
-            String msg = keyboard.nextLine();
-            outputStream.println(nick + " says: " + msg);
-            outputStream.flush();
+        // Tạo public key
+        try {
+            KeyPairGenerate.genKey();
+            X509EncodedKeySpec spec = new X509EncodedKeySpec(KeyPairGenerate.pubKey);
+            KeyFactory factory = KeyFactory.getInstance("RSA");
+            PublicKey pubKey = factory.generatePublic(spec);
+
+            Cipher c = Cipher.getInstance("RSA");
+            c.init(Cipher.ENCRYPT_MODE, pubKey);
+
+            // continuously listen your user input
+            while (keyboard.hasNextLine()) {
+                String msg = keyboard.nextLine();
+
+                byte encryptOut[] = c.doFinal(msg.getBytes());
+                String strEncrypt = Base64.encode(encryptOut);
+                System.out.println(nick + " says: " + msg);
+                outputStream.println(nick + " says: " + msg);
+                outputStream.flush();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
     }
 
